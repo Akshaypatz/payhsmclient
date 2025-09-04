@@ -7,7 +7,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.concurrent.*;
 
-@Component
 @Slf4j
 public class ResponseDispatcher {
     private final ConcurrentMap<String, CompletableFuture<String>> pendingRequests = new ConcurrentHashMap<>();

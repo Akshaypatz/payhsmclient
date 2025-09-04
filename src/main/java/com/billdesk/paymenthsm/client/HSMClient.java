@@ -1,14 +1,10 @@
 package com.billdesk.paymenthsm.client;
 
 import com.billdesk.paymenthsm.client.internal.config.HSMConfig;
-import com.billdesk.paymenthsm.client.internal.core.CommandBuilder;
 import com.billdesk.paymenthsm.client.internal.core.HSMService;
-import com.billdesk.paymenthsm.client.internal.core.ResponseDispatcher;
 import com.billdesk.paymenthsm.client.internal.enums.ACS_BANK;
 import com.billdesk.paymenthsm.client.internal.exception.HSMException;
 import com.billdesk.paymenthsm.client.internal.loadbalancer.LoadBalancer;
-import com.billdesk.paymenthsm.client.internal.provider.utimaco.UtimacoCommandBuilder;
-import com.billdesk.paymenthsm.client.internal.provider.utimaco.UtimacoHSMService;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -21,50 +17,51 @@ import java.util.concurrent.CompletableFuture;
 public class HSMClient {
     private final HSMService hsmService;
     private final LoadBalancer loadBalancer;
+    private final boolean enabled;
 
-    public HSMClient(HSMConfig config, Map<String,String> keyBlocks) {
-        config.validate();
-        if (keyBlocks == null || keyBlocks.isEmpty()) {
-            throw new IllegalArgumentException("HSM Key blocks must be provided at application startup");
-        }
-        CommandBuilder commandBuilder = createCommandBuilder(config);
-        this.loadBalancer = new LoadBalancer(config, commandBuilder);
-        this.hsmService = createHSMService(config, loadBalancer, commandBuilder,keyBlocks);
-    }
+    public HSMClient(HSMConfig config,LoadBalancer loadBalancer, HSMService hsmService) {
 
-    private CommandBuilder createCommandBuilder(HSMConfig config) {
-        switch (config.getProvider()) {
-            case UTIMACO:
-                return new UtimacoCommandBuilder();
-            default:
-                throw new IllegalArgumentException("Unsupported provider: " + config.getProvider());
+        if (!config.isEnabled()) {
+            log.info("HSM Client is disabled");
+            this.enabled = false;
+            this.hsmService = null;
+            this.loadBalancer = null;
+            return;
         }
-    }
 
-    private HSMService createHSMService(HSMConfig config, LoadBalancer loadBalancer, CommandBuilder commandBuilder, Map<String, String> keyBlocks) {
-        switch (config.getProvider()) {
-            case UTIMACO:
-                return new UtimacoHSMService(config, loadBalancer, commandBuilder,keyBlocks);
-            default:
-                throw new IllegalArgumentException("Unsupported provider: " + config.getProvider());
-        }
+        this.loadBalancer = loadBalancer;
+        this.hsmService = hsmService;
+        this.enabled = true;
     }
 
     public CompletableFuture<String> generateVisaCAVV(ACS_BANK bank, String data) throws HSMException {
+        checkIfEnabled();
         return hsmService.generateVisaCAVV(bank, data);
     }
 
     public CompletableFuture<String> generateMasterCAVV(ACS_BANK bank, String data) throws HSMException {
+        checkIfEnabled();
         return hsmService.generateMasterCAVV(bank, data);
     }
 
     public CompletableFuture<String> generateHMAC(String keyName, String data) throws HSMException {
+        checkIfEnabled();
         return hsmService.generateHMAC(keyName, data);
+    }
+
+    private void checkIfEnabled() throws HSMException {
+        if (!enabled) {
+            throw new HSMException("HSM Client is disabled. Check your configuration.");
+        }
     }
 
     @PreDestroy
     public void shutdown() {
-        log.info("Shutting down HSMClient gracefully.");
-        loadBalancer.shutdown();
+        if (enabled) {
+            log.info("Shutting down HSMClient gracefully.");
+            loadBalancer.shutdown();
+        } else {
+            log.info("HSM Client was disabled, no shutdown required.");
+        }
     }
 }

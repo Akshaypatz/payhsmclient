@@ -6,12 +6,10 @@ import com.billdesk.paymenthsm.client.internal.enums.ACS_BANK;
 import com.billdesk.paymenthsm.client.internal.exception.HSMKeyNotFoundException;
 import com.billdesk.paymenthsm.client.internal.loadbalancer.LoadBalancer;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-@Service
 @Slf4j
 public abstract class AbstractHSMService implements HSMService{
 

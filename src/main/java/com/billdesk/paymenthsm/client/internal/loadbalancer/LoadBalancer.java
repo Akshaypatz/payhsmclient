@@ -22,7 +22,7 @@ public class LoadBalancer {
     public LoadBalancer(HSMConfig config,
                         CommandBuilder commandBuilder) {
         this.loadBalancingType = config.getLoadBalancingType();
-        this.nodePools = config.getNodes().stream()
+        this.nodePools = config.getHsmNodes().stream()
                 .map(node -> new HSMConnectionPool(node, config, commandBuilder))
                 .collect(Collectors.toList());
 
@@ -79,18 +79,13 @@ public class LoadBalancer {
     }
 
     private HSMConnectionPool getNextHealthyPool() {
-        if (loadBalancingType == LoadBalancingType.NETWORK_LEVEL) {
-            log.info("Using {} load balancing!", LoadBalancingType.NETWORK_LEVEL.name());
+        log.info("Using {} load balancing!", loadBalancingType);
+        if (loadBalancingType == LoadBalancingType.NETWORK_LEVEL || loadBalancingType == LoadBalancingType.CLIENT_SIDE_FAILOVER) {
             return nodePools.stream().filter(HSMConnectionPool::isHealthy).findFirst().orElse(null);
         }
-        // TODO: based on what is mentioned as load balancing strategy or keep default of failover on client side.
-
-        log.info("Using {} load balancing!", LoadBalancingType.CLIENT_SIDE.name());
         int size = nodePools.size();
         for (int i = 0; i < size; i++) {
             int index = currentIndex.getAndIncrement() % size;
-            // think of resetting currentindex to 0 else out of bound.
-            //TODO: akshay revisit this
             if (currentIndex.get() >= Integer.MAX_VALUE - 100000) {
                 currentIndex.set(0);
                 index = 0;
