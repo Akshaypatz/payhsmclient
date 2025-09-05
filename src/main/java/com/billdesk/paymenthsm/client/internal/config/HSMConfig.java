@@ -61,9 +61,7 @@ public class HSMConfig {
             if (hsmNodes != null && !hsmNodes.isEmpty()) {
                 log.warn("HSM Nodes configuration will be ignored for NETWORK_LEVEL load balancing");
             }
-        }
-
-        else if (loadBalancingType == LoadBalancingType.CLIENT_SIDE_ROUND_ROBIN || loadBalancingType == LoadBalancingType.CLIENT_SIDE_FAILOVER) {
+        } else if (loadBalancingType == LoadBalancingType.CLIENT_SIDE_ROUND_ROBIN || loadBalancingType == LoadBalancingType.CLIENT_SIDE_FAILOVER) {
             if (hsmNodes == null || hsmNodes.isEmpty()) {
                 throw new IllegalArgumentException("HSM nodes must be configured for CLIENT_SIDE load balancing");
             }
@@ -80,11 +78,6 @@ public class HSMConfig {
         if (idleConnections > maxConnections) {
             throw new IllegalArgumentException("Idle connections cannot exceed max connections");
         }
-
-        log.info(String.valueOf(provider));
-        hsmNodes.forEach(hsmNode -> log.info(String.valueOf(hsmNode.getPort())));
-        keyBlocks.forEach((k,v)-> log.info("{} :  {}",k,v));
-
 
     }
 

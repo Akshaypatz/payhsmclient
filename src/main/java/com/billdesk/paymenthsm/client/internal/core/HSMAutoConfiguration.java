@@ -29,7 +29,8 @@ import org.springframework.context.annotation.Configuration;
 
 import java.util.Map;
 
-@Configuration
+@AutoConfiguration
+//@Configuration
 @ConditionalOnClass(HSMClient.class)
 @EnableConfigurationProperties(HSMConfig.class)
 @Slf4j
