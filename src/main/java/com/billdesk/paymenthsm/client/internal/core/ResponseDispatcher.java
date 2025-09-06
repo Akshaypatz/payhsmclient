@@ -15,7 +15,7 @@ public class ResponseDispatcher {
 
     public ResponseDispatcher(HSMNode hsmNode) {
         this.hsmNode = hsmNode;
-        this.timeoutExecutor = Executors.newScheduledThreadPool(3);
+        this.timeoutExecutor = Executors.newScheduledThreadPool(12);
     }
 
     public void registerRequest(String correlationId, CompletableFuture<String> future) {

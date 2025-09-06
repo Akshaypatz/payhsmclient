@@ -47,7 +47,7 @@ public class HSMClient {
         checkIfEnabled();
         return hsmService.generateHMAC(keyName, data);
     }
-    private void checkIfEnabled() throws HSMException {
+    private void checkIfEnabled() {
         if (!enabled) {
             throw new HSMException("HSM Client is disabled. Check your configuration.");
         }

@@ -84,7 +84,7 @@ public class LoadBalancer {
                         log.error("Connection error encountered to HSM {}:{}. Marking it unhealthy! ", pool.getNode().getIp(), pool.getNode().getPort());
                         pool.markUnhealthy();
                     }
-                    log.info("Retrying command on pool {}:{} -> {} with correlation: {}", pool.getNode().getIp(), pool.getNode().getPort(), command, correlationId);
+                    log.info("Retrying command on next available pool-> {} with correlation: {}", command, correlationId);
                     return tryExecute(command, correlationId, tries + 1, newMask);
                 });
     }

@@ -33,35 +33,46 @@ public abstract class AbstractHSMService implements HSMService {
     }
 
     @Override
-    public CompletableFuture<String> generateVisaCAVV(ACS_BANK bank, String data) throws HSMException {
-        String keyBlock = getKeyBlock(buildCAVVKeyName(bank, VISA));
-        String command = commandBuilder.buildVisaCAVVCommand(keyBlock, data);
-        String correlationId = generateCorrelationId();
-        return loadBalancer.executeCommand(command, correlationId);
+    public CompletableFuture<String> generateVisaCAVV(ACS_BANK bank, String data) {
+        try {
+            String keyBlock = getKeyBlock(buildCAVVKeyName(bank, VISA));
+            String command = commandBuilder.buildVisaCAVVCommand(keyBlock, data);
+            String correlationId = generateCorrelationId();
+            return loadBalancer.executeCommand(command, correlationId);
+        } catch (HSMKeyNotFoundException e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     private String buildCAVVKeyName(ACS_BANK bank, String scheme) {
         return bank.name() + "_" + scheme.toUpperCase() + CAVV_GENERATION_KEYNAME_SUFFIX;
     }
 
-    //TODO: dont take key name directly , use the bank enum way
     @Override
-    public CompletableFuture<String> generateMasterCAVV(ACS_BANK bank, String data) throws HSMException {
-        String keyBlock = getKeyBlock(buildCAVVKeyName(bank, MASTERCARD));
-        String command = commandBuilder.buildMasterCAVVCommand(keyBlock, data);
-        String correlationId = generateCorrelationId();
-        return loadBalancer.executeCommand(command, correlationId);
+    public CompletableFuture<String> generateMasterCAVV(ACS_BANK bank, String data) {
+        try {
+            String keyBlock = getKeyBlock(buildCAVVKeyName(bank, MASTERCARD));
+            String command = commandBuilder.buildMasterCAVVCommand(keyBlock, data);
+            String correlationId = generateCorrelationId();
+            return loadBalancer.executeCommand(command, correlationId);
+        } catch (HSMKeyNotFoundException e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     @Override
-    public CompletableFuture<String> generateHMAC(String keyName, String data) throws HSMException {
-        String keyBlock = getKeyBlock(keyName);
-        String command = commandBuilder.buildHMACCommand(keyBlock, data);
-        String correlationId = generateCorrelationId();
-        return loadBalancer.executeCommand(command, correlationId);
+    public CompletableFuture<String> generateHMAC(String keyName, String data) {
+        try {
+            String keyBlock = getKeyBlock(keyName);
+            String command = commandBuilder.buildHMACCommand(keyBlock, data);
+            String correlationId = generateCorrelationId();
+            return loadBalancer.executeCommand(command, correlationId);
+        } catch (HSMKeyNotFoundException e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
-    private String getKeyBlock(String keyName) throws HSMException {
+    private String getKeyBlock(String keyName) {
         String keyBlock = keyBlocks.get(keyName);
         if (keyBlock == null) {
             throw new HSMKeyNotFoundException("Key not found: " + keyName);

@@ -8,9 +8,11 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.pool2.impl.GenericObjectPool;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -89,13 +91,21 @@ public class HSMConnectionPool {
         }
         AsyncSocketConnection socket = null;
         try {
-            socket = internalConnectionPool.borrowObject();
+            log.info("Attempting to borrow socket from pool for correlation id {}  {}:{}" ,correlationId, node.getIp(), node.getPort());
+            socket = internalConnectionPool.borrowObject(Duration.ofMillis(70));
+            log.info("Successfully borrowed socket from pool for correlation id {} {}:{}",correlationId, node.getIp(), node.getPort());
             final AsyncSocketConnection finalSocket = socket;
             return socket.sendCommandToHSM(command, correlationId)
                     .whenComplete((hsmResult, ex) -> {
                         try {
                             if (ex != null) {
-                                if (ex.getCause() instanceof HSMConnectionException || ex.getCause() instanceof HSMSocketShutdownException || ex.getCause() instanceof HSMIOException) {
+
+                                Throwable cause = ex instanceof CompletionException ? ex.getCause() : ex;
+                                boolean connectionIssue = cause instanceof HSMConnectionException
+                                        || cause instanceof HSMSocketShutdownException
+                                        || cause instanceof HSMIOException;
+
+                                if (connectionIssue) {
                                     log.warn("Command failed due to connection issue, invalidating socker for {}:{}", node.getIp(), node.getPort());
                                     invalidateConnectionSafely(finalSocket);
                                 } else {
