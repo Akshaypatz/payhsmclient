@@ -1,40 +1,25 @@
 package com.billdesk.paymenthsm.client.internal.core;
 
-//@AutoConfiguration
-//@EnableConfigurationProperties(HSMConfig.class)
-//public class HSMAutoConfiguration {
-//
-//    @Bean
-//    public HSMClient hsmClient(HSMConfig config, Map<String, String> keyBlocks) {
-//        HSMClient client = new HSMClient(config,keyBlocks);
-//        return client;
-//    }
-//}
-
-
 import com.billdesk.paymenthsm.client.HSMClient;
 import com.billdesk.paymenthsm.client.internal.config.HSMConfig;
 import com.billdesk.paymenthsm.client.internal.loadbalancer.LoadBalancer;
 import com.billdesk.paymenthsm.client.internal.provider.utimaco.UtimacoCommandBuilder;
 import com.billdesk.paymenthsm.client.internal.provider.utimaco.UtimacoHSMService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
 import java.util.Map;
 
 @AutoConfiguration
-//@Configuration
 @ConditionalOnClass(HSMClient.class)
 @EnableConfigurationProperties(HSMConfig.class)
 @Slf4j
-@ConditionalOnProperty(prefix = "hsm.client", name = "enabled", havingValue = "true", matchIfMissing = false)
+//@ConditionalOnProperty(prefix = "hsm.client", name = "enabled", havingValue = "true", matchIfMissing = false)
 public class HSMAutoConfiguration {
 
     @Bean
@@ -59,6 +44,11 @@ public class HSMAutoConfiguration {
     public HSMService hsmService(HSMConfig config, LoadBalancer loadBalancer,
                                  CommandBuilder commandBuilder, Map<String, String> hsmKeyBlocks) {
 
+        if (!config.isEnabled()) {
+            // default for not enabled initialization
+            return new UtimacoHSMService(config, loadBalancer, commandBuilder, null);
+        }
+
         Map<String, String> finalKeyBlocks = resolveKeyBlocks(hsmKeyBlocks, config.getKeyBlocks());
         switch (config.getProvider()) {
             case UTIMACO:
@@ -79,6 +69,7 @@ public class HSMAutoConfiguration {
             log.info("Using key blocks provided via configuration");
             return configKeyBlocks;
         }
+
 
         throw new IllegalArgumentException("HSM Key blocks must be provided");
     }

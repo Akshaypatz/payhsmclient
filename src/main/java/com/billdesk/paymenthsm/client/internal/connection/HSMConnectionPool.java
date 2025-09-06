@@ -48,7 +48,7 @@ public class HSMConnectionPool {
         internalConnectionPool.setTestOnReturn(false);
         internalConnectionPool.setTestWhileIdle(false);
         try {
-            // prepares the idle connections also at startup else lazy loading is done
+            // FYI prepares the idle connections also at startup else lazy loading is done
             internalConnectionPool.preparePool();
         } catch (Exception e) {
             log.error("Error occurred while preparing pool for {}:{}", node.getIp(), node.getPort());
@@ -64,7 +64,7 @@ public class HSMConnectionPool {
             try {
                 socket = internalConnectionPool.borrowObject();
                 if (!socket.isConnected()) {
-                    internalConnectionPool.invalidateObject(socket);
+                    internalConnectionPool.invalidateObject(socket); // discard broken socket
                     throw new HSMConnectionException("Socket failed to connect to HSM" + node.getIp());
                 }
                 // TODO: check and think if we nede keep ping on startup for validation ?
@@ -95,13 +95,14 @@ public class HSMConnectionPool {
                     .whenComplete((hsmResult, ex) -> {
                         try {
                             if (ex != null) {
-                                if (ex.getCause() instanceof HSMConnectionException || ex.getCause() instanceof HSMSocketTimeoutException || ex.getCause() instanceof HSMIOException) {
-                                    log.warn("Command failed  due to connection issue, invalidating socker for {}:{}", node.getIp(), node.getPort());
+                                if (ex.getCause() instanceof HSMConnectionException || ex.getCause() instanceof HSMSocketShutdownException || ex.getCause() instanceof HSMIOException) {
+                                    log.warn("Command failed due to connection issue, invalidating socker for {}:{}", node.getIp(), node.getPort());
                                     invalidateConnectionSafely(finalSocket);
                                 } else {
                                     returnConnectionSafely(finalSocket);
                                 }
                             } else {
+                                log.info("Returning connection ALL GOOD HERE");
                                 returnConnectionSafely(finalSocket);
                             }
                         } catch (Exception poolError) {
@@ -118,7 +119,7 @@ public class HSMConnectionPool {
                 markUnhealthy();
             }
             CompletableFuture<String> failed = new CompletableFuture<>();
-            String errorMsg = String.format("Failed to borrow socket for command on HSM %s:%s", node.getIp(), node.getPort());
+            String errorMsg = String.format("Failed to execute command on HSM %s:%s", node.getIp(), node.getPort());
             failed.completeExceptionally(new HSMConnectionException(errorMsg, e));
             return failed;
         }
@@ -143,9 +144,10 @@ public class HSMConnectionPool {
     public boolean performHealthCheckOnAllSockets() {
 
         int totalConnections = internalConnectionPool.getNumActive() + internalConnectionPool.getNumIdle();
-        if (totalConnections == 0) {
+
+        if (isHealthy() && totalConnections == 0) {
+            log.info(String.valueOf(isHealthy()));
             log.warn("No connections in pool to HSM {}:{}", node.getIp(), node.getPort());
-            markUnhealthy();
             return false;
         }
 

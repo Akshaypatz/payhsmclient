@@ -8,5 +8,4 @@ public class HSMException extends RuntimeException {
     public HSMException(String message, Throwable cause) {
         super(message, cause);
     }
-
 }

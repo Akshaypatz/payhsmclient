@@ -9,4 +9,3 @@ public class HSMRequestTimeoutException extends HSMException {
         super(message, cause);
     }
 }
-

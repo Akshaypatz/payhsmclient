@@ -1,6 +1,7 @@
 package com.billdesk.paymenthsm.client.internal.provider.utimaco;
 
 import com.billdesk.paymenthsm.client.internal.core.CommandBuilder;
+import com.billdesk.paymenthsm.client.internal.exception.HSMCommandException;
 import com.billdesk.paymenthsm.client.internal.exception.HSMException;
 import com.billdesk.paymenthsm.client.internal.exception.HSMProtocolException;
 import lombok.extern.slf4j.Slf4j;
@@ -32,13 +33,17 @@ public class UtimacoCommandBuilder implements CommandBuilder {
     }
 
     @Override
-    public String parseResponse(String rawResponse) throws HSMException {
+    public String parseResponse(String rawResponse) {
         Matcher matcher = RESPONSE_PATTERN.matcher(rawResponse.trim());
         if (matcher.find()) {
             String commandCode = matcher.group(1);
             String firstField = matcher.group(2);
             String correlationId = matcher.group(3);
             log.info("Parsing for correlation id -> {}", correlationId);
+
+            if ("ER".equalsIgnoreCase(commandCode)) {
+                throw new HSMCommandException("HSM Command responded with error. Refer utimaco provider manual for more on the error.");
+            }
 
             return switch (commandCode) {
                 case "6D" -> firstField; // CAVV
@@ -52,8 +57,12 @@ public class UtimacoCommandBuilder implements CommandBuilder {
 
     @Override
     public String extractContextTag(String rawResponse) {
-        Matcher matcher = CONTEXT_TAG_PATTERN.matcher(rawResponse.trim());
-        return matcher.find() ? matcher.group(1) : null;
+        try {
+            Matcher matcher = CONTEXT_TAG_PATTERN.matcher(rawResponse.trim());
+            return matcher.find() ? matcher.group(1) : null;
+        } catch (Exception e) {
+            throw new HSMProtocolException("Failed to parse Utimaco response");
+        }
     }
 
     @Override
@@ -64,5 +73,10 @@ public class UtimacoCommandBuilder implements CommandBuilder {
     @Override
     public String buildHSMPingCommand() {
         return "<00#>";
+    }
+
+    @Override
+    public String getHSMResponseEndTag() {
+        return ">";
     }
 }

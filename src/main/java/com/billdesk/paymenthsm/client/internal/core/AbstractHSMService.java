@@ -1,20 +1,21 @@
 package com.billdesk.paymenthsm.client.internal.core;
 
-import com.billdesk.paymenthsm.client.internal.exception.HSMException;
 import com.billdesk.paymenthsm.client.internal.config.HSMConfig;
 import com.billdesk.paymenthsm.client.internal.enums.ACS_BANK;
+import com.billdesk.paymenthsm.client.internal.exception.HSMException;
 import com.billdesk.paymenthsm.client.internal.exception.HSMKeyNotFoundException;
 import com.billdesk.paymenthsm.client.internal.loadbalancer.LoadBalancer;
 import lombok.extern.slf4j.Slf4j;
+
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
-public abstract class AbstractHSMService implements HSMService{
-
+public abstract class AbstractHSMService implements HSMService {
     public static final String VISA = "VISA";
     public static final String CAVV_GENERATION_KEYNAME_SUFFIX = "_CAVV_GEN";
+    public static final String MASTERCARD = "MASTERCARD";
     private final HSMConfig config;
     private final LoadBalancer loadBalancer;
     private final CommandBuilder commandBuilder;
@@ -25,7 +26,10 @@ public abstract class AbstractHSMService implements HSMService{
         this.loadBalancer = loadBalancer;
         this.commandBuilder = commandBuilder;
         this.keyBlocks = keyBlocks;
-        log.info("Initializing {} HSM", getProvider().name());
+        if (config.isEnabled()) {
+            log.info("Initializing {} HSM", getProvider().name());
+        }
+
     }
 
     @Override
@@ -36,13 +40,14 @@ public abstract class AbstractHSMService implements HSMService{
         return loadBalancer.executeCommand(command, correlationId);
     }
 
-    private String buildCAVVKeyName(ACS_BANK bank,String scheme){
-        return bank.name()+"_"+scheme.toUpperCase()+ CAVV_GENERATION_KEYNAME_SUFFIX;
+    private String buildCAVVKeyName(ACS_BANK bank, String scheme) {
+        return bank.name() + "_" + scheme.toUpperCase() + CAVV_GENERATION_KEYNAME_SUFFIX;
     }
 
+    //TODO: dont take key name directly , use the bank enum way
     @Override
     public CompletableFuture<String> generateMasterCAVV(ACS_BANK bank, String data) throws HSMException {
-        String keyBlock = getKeyBlock(buildCAVVKeyName(bank,"MASTERCARD"));
+        String keyBlock = getKeyBlock(buildCAVVKeyName(bank, MASTERCARD));
         String command = commandBuilder.buildMasterCAVVCommand(keyBlock, data);
         String correlationId = generateCorrelationId();
         return loadBalancer.executeCommand(command, correlationId);
@@ -67,5 +72,4 @@ public abstract class AbstractHSMService implements HSMService{
     private String generateCorrelationId() {
         return "BD_" + System.currentTimeMillis() + "_" + UUID.randomUUID().toString().substring(0, 8);
     }
-
 }

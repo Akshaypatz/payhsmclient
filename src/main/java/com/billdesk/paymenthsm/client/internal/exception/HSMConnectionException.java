@@ -9,4 +9,3 @@ public class HSMConnectionException extends HSMException {
         super(message, cause);
     }
 }
-

@@ -3,7 +3,6 @@ package com.billdesk.paymenthsm.client.internal.core;
 import com.billdesk.paymenthsm.client.internal.exception.*;
 import com.billdesk.paymenthsm.client.internal.model.HSMNode;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 
 import java.util.concurrent.*;
 
@@ -16,7 +15,7 @@ public class ResponseDispatcher {
 
     public ResponseDispatcher(HSMNode hsmNode) {
         this.hsmNode = hsmNode;
-        this.timeoutExecutor = Executors.newScheduledThreadPool(2);
+        this.timeoutExecutor = Executors.newScheduledThreadPool(3);
     }
 
     public void registerRequest(String correlationId, CompletableFuture<String> future) {
@@ -65,12 +64,12 @@ public class ResponseDispatcher {
     }
 
     public void shutdown() {
-        log.warn("Shutting down a response dispatcher for socket to {}:{}", hsmNode.getIp(), hsmNode.getPort());
+        log.warn("Shutting down response dispatcher for socket to {}:{}", hsmNode.getIp(), hsmNode.getPort());
         String shutdownMessage = String.format("HSMClient socket connection closing to %s:%s", hsmNode.getIp(), hsmNode.getPort());
-        completeAllWithError(new HSMConnectionException(shutdownMessage));
+        completeAllWithError(new HSMSocketShutdownException(shutdownMessage));
         timeoutExecutor.shutdown();
         try {
-            if (!timeoutExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+            if (!timeoutExecutor.awaitTermination(1, TimeUnit.SECONDS)) {
                 timeoutExecutor.shutdownNow();
             }
         } catch (InterruptedException ie) {
@@ -79,12 +78,13 @@ public class ResponseDispatcher {
         }
     }
 
-    public void completeAllWithError(HSMConnectionException exception) {
+    public void completeAllWithError(HSMSocketShutdownException exception) {
         log.error("Completing all pending requests with error: {}", exception.getMessage());
         pendingRequests.forEach((correlationId, future) -> {
             if (!future.isDone()) {
-                future.completeExceptionally(exception);
-                log.warn("Completed request {} with global error", correlationId);
+                if(future.completeExceptionally(exception)){
+                    log.warn("Completed request {} with global error", correlationId);
+                }
             }
         });
         pendingRequests.clear();

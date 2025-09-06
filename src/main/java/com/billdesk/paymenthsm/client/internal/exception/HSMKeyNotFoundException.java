@@ -9,4 +9,3 @@ public class HSMKeyNotFoundException extends HSMException {
         super(message, cause);
     }
 }
-

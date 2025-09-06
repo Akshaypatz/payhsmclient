@@ -6,8 +6,10 @@ public interface CommandBuilder {
     String buildVisaCAVVCommand(String keyBlock, String data);
     String buildMasterCAVVCommand(String keyBlock, String data);
     String buildHMACCommand(String keyBlock, String data);
-    String parseResponse(String rawResponse) throws HSMException;
+    String parseResponse(String rawResponse);
     String extractContextTag(String rawResponse);
     String embedContextTag(String command, String contextTag);
     String buildHSMPingCommand();
+    String getHSMResponseEndTag();
+
 }

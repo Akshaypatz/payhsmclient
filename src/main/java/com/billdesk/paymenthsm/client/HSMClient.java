@@ -9,7 +9,6 @@ import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 @Component
@@ -19,8 +18,7 @@ public class HSMClient {
     private final LoadBalancer loadBalancer;
     private final boolean enabled;
 
-    public HSMClient(HSMConfig config,LoadBalancer loadBalancer, HSMService hsmService) {
-
+    public HSMClient(HSMConfig config, LoadBalancer loadBalancer, HSMService hsmService) {
         if (!config.isEnabled()) {
             log.info("HSM Client is disabled");
             this.enabled = false;
@@ -32,23 +30,23 @@ public class HSMClient {
         this.loadBalancer = loadBalancer;
         this.hsmService = hsmService;
         this.enabled = true;
+
     }
 
-    public CompletableFuture<String> generateVisaCAVV(ACS_BANK bank, String data) throws HSMException {
+    public CompletableFuture<String> generateVisaCAVV(ACS_BANK bank, String data) {
         checkIfEnabled();
         return hsmService.generateVisaCAVV(bank, data);
     }
 
-    public CompletableFuture<String> generateMasterCAVV(ACS_BANK bank, String data) throws HSMException {
+    public CompletableFuture<String> generateMasterCAVV(ACS_BANK bank, String data) {
         checkIfEnabled();
         return hsmService.generateMasterCAVV(bank, data);
     }
 
-    public CompletableFuture<String> generateHMAC(String keyName, String data) throws HSMException {
+    public CompletableFuture<String> generateHMAC(String keyName, String data) {
         checkIfEnabled();
         return hsmService.generateHMAC(keyName, data);
     }
-
     private void checkIfEnabled() throws HSMException {
         if (!enabled) {
             throw new HSMException("HSM Client is disabled. Check your configuration.");

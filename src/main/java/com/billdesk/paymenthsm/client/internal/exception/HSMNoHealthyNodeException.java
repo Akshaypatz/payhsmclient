@@ -9,4 +9,3 @@ public class HSMNoHealthyNodeException extends HSMException {
         super(message, cause);
     }
 }
-
