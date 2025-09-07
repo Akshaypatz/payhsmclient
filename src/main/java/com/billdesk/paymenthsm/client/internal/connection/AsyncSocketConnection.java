@@ -5,8 +5,10 @@ import com.billdesk.paymenthsm.client.internal.core.CommandBuilder;
 import com.billdesk.paymenthsm.client.internal.core.ResponseDispatcher;
 import com.billdesk.paymenthsm.client.internal.exception.*;
 import com.billdesk.paymenthsm.client.internal.model.HSMNode;
+import com.billdesk.paymenthsm.client.internal.util.HSMConstants;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.net.ssl.SSLSocket;
 import java.io.*;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
@@ -22,7 +24,6 @@ public class AsyncSocketConnection {
     private final CommandBuilder commandBuilder;
     private volatile boolean running = true;
     private final Thread listenerThread;
-    private static final Long PING_HSM_TIMEOUT = 100L;
     private final HSMNode hsmNode;
 
     public AsyncSocketConnection(Socket socket, ResponseDispatcher responseDispatcher,
@@ -34,7 +35,6 @@ public class AsyncSocketConnection {
             this.hsmNode = hsmNode;
             this.writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
 
-            //TODO: kill this daemon thread later when socket closes?? // or make it non daemon and interuppt
             this.listenerThread = new Thread(this::listenForResponses);
             this.listenerThread.setName("HSM-Listener-" + socket.getInetAddress().getHostAddress() + ":" + socket.getPort());
             this.listenerThread.setDaemon(false);
@@ -103,7 +103,7 @@ public class AsyncSocketConnection {
     }
 
     public CompletableFuture<String> pingHsm() {
-        return sendCommandToHSM(commandBuilder.buildHSMPingCommand(), generatePingCorrelationId(), PING_HSM_TIMEOUT);
+        return sendCommandToHSM(commandBuilder.buildHSMPingCommand(), generatePingCorrelationId(), HSMConstants.PING_HSM_TIMEOUT);
     }
 
     private String generatePingCorrelationId() {
@@ -137,6 +137,14 @@ public class AsyncSocketConnection {
             responseDispatcher.completeHSMCommandSendFailureWithError(command, contextTag, e);
         }
         return future;
+    }
+
+    public void doHandshake() throws IOException {
+        if (socket instanceof SSLSocket sslSocket) {
+            sslSocket.startHandshake();
+        } else {
+            throw new IllegalStateException("Handshake initiated but socket is not SSL");
+        }
     }
 
     public void close() {

@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
+import java.io.File;
 import java.util.List;
 import java.util.Map;
 
@@ -36,6 +37,9 @@ public class HSMConfig {
     private String vip;
     private Map<String, String> keyBlocks;
     private boolean enabled = true;
+    private boolean enableSSL;
+    private String truststorePath;
+    private String truststorePassword;
 
     @PostConstruct
     public void validate() {
@@ -49,6 +53,20 @@ public class HSMConfig {
 
         if (loadBalancingType == null) {
             throw new IllegalArgumentException("Load balancing type must be specified");
+        }
+
+        if (isEnableSSL()) {
+            if (truststorePath == null || truststorePath.isBlank()) {
+                throw new IllegalArgumentException("Truststore path must be specified when SSL is enabled");
+            }
+            if (truststorePassword == null || truststorePassword.isBlank()) {
+                throw new IllegalArgumentException("Truststore password must be specified when SSL is enabled");
+            }
+
+            File truststoreFile = new File(truststorePath);
+            if (!truststoreFile.exists() || !truststoreFile.isFile()) {
+                throw new IllegalArgumentException("Truststore file not found at path: " + truststorePath);
+            }
         }
 
         // Network-level load balancing validation

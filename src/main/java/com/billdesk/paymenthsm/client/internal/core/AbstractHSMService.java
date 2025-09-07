@@ -2,9 +2,9 @@ package com.billdesk.paymenthsm.client.internal.core;
 
 import com.billdesk.paymenthsm.client.internal.config.HSMConfig;
 import com.billdesk.paymenthsm.client.internal.enums.ACS_BANK;
-import com.billdesk.paymenthsm.client.internal.exception.HSMException;
 import com.billdesk.paymenthsm.client.internal.exception.HSMKeyNotFoundException;
 import com.billdesk.paymenthsm.client.internal.loadbalancer.LoadBalancer;
+import com.billdesk.paymenthsm.client.internal.util.HSMConstants;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;
@@ -13,9 +13,6 @@ import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 public abstract class AbstractHSMService implements HSMService {
-    public static final String VISA = "VISA";
-    public static final String CAVV_GENERATION_KEYNAME_SUFFIX = "_CAVV_GEN";
-    public static final String MASTERCARD = "MASTERCARD";
     private final HSMConfig config;
     private final LoadBalancer loadBalancer;
     private final CommandBuilder commandBuilder;
@@ -35,7 +32,7 @@ public abstract class AbstractHSMService implements HSMService {
     @Override
     public CompletableFuture<String> generateVisaCAVV(ACS_BANK bank, String data) {
         try {
-            String keyBlock = getKeyBlock(buildCAVVKeyName(bank, VISA));
+            String keyBlock = getKeyBlock(buildCAVVKeyName(bank, HSMConstants.VISA));
             String command = commandBuilder.buildVisaCAVVCommand(keyBlock, data);
             String correlationId = generateCorrelationId();
             return loadBalancer.executeCommand(command, correlationId);
@@ -45,13 +42,13 @@ public abstract class AbstractHSMService implements HSMService {
     }
 
     private String buildCAVVKeyName(ACS_BANK bank, String scheme) {
-        return bank.name() + "_" + scheme.toUpperCase() + CAVV_GENERATION_KEYNAME_SUFFIX;
+        return bank.name() + "_" + scheme.toUpperCase() + HSMConstants.CAVV_GENERATION_KEYNAME_SUFFIX;
     }
 
     @Override
     public CompletableFuture<String> generateMasterCAVV(ACS_BANK bank, String data) {
         try {
-            String keyBlock = getKeyBlock(buildCAVVKeyName(bank, MASTERCARD));
+            String keyBlock = getKeyBlock(buildCAVVKeyName(bank, HSMConstants.MASTERCARD));
             String command = commandBuilder.buildMasterCAVVCommand(keyBlock, data);
             String correlationId = generateCorrelationId();
             return loadBalancer.executeCommand(command, correlationId);

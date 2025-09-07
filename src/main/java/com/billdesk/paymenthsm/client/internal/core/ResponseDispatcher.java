@@ -2,6 +2,7 @@ package com.billdesk.paymenthsm.client.internal.core;
 
 import com.billdesk.paymenthsm.client.internal.exception.*;
 import com.billdesk.paymenthsm.client.internal.model.HSMNode;
+import com.billdesk.paymenthsm.client.internal.util.HSMConstants;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.*;
@@ -10,16 +11,15 @@ import java.util.concurrent.*;
 public class ResponseDispatcher {
     private final ConcurrentMap<String, CompletableFuture<String>> pendingRequests = new ConcurrentHashMap<>();
     private final ScheduledExecutorService timeoutExecutor;
-    private static final long defaultHSMTimeout = 100L;
     private final HSMNode hsmNode;
 
     public ResponseDispatcher(HSMNode hsmNode) {
         this.hsmNode = hsmNode;
-        this.timeoutExecutor = Executors.newScheduledThreadPool(12);
+        this.timeoutExecutor = Executors.newScheduledThreadPool(HSMConstants.TIMED_EXECUTOR_CORE_POOLSIZE);
     }
 
     public void registerRequest(String correlationId, CompletableFuture<String> future) {
-        registerRequest(correlationId, future, defaultHSMTimeout);
+        registerRequest(correlationId, future, HSMConstants.DEFAULT_HSM_TIMEOUT);
     }
 
     public void registerRequest(String correlationId, CompletableFuture<String> future, long timeoutMs) {

@@ -6,6 +6,7 @@ import com.billdesk.paymenthsm.client.internal.core.CommandBuilder;
 import com.billdesk.paymenthsm.client.internal.exception.HSMConnectionException;
 import com.billdesk.paymenthsm.client.internal.exception.HSMNoHealthyNodeException;
 import com.billdesk.paymenthsm.client.internal.exception.TriedAllHSMNodesException;
+import com.billdesk.paymenthsm.client.internal.util.HSMConstants;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
@@ -52,7 +53,7 @@ public class LoadBalancer {
         }
 
         // kept it 30 seconds because socket timeout we have kept 45.
-        healthChecker.scheduleAtFixedRate(this::runHealthCheckOnAllSockets, 30, 30, TimeUnit.SECONDS);
+        healthChecker.scheduleAtFixedRate(this::runHealthCheckOnAllSockets, HSMConstants.HEALTH_CHECK_INITIAL_DELAY, HSMConstants.HEALTH_CHECK_FREQPERIOD, TimeUnit.SECONDS);
     }
 
     public CompletableFuture<String> executeCommand(String command, String correlationId) {

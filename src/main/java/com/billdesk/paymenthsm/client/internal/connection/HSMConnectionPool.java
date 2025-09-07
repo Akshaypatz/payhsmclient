@@ -58,6 +58,74 @@ public class HSMConnectionPool {
     }
 
 
+    public void warmupPoolAndMarkHealthyNodesWithPing() {
+        int connections = Math.max(1, config.getIdleConnections());
+
+        int successfulPings = 0;
+        int testedConnections = 0;
+        List<AsyncSocketConnection> borrowedConnections = new ArrayList<>();
+
+        try {
+            for (int i = 0; i < connections; i++) {
+                AsyncSocketConnection socket = null;
+                try {
+                    socket = internalConnectionPool.borrowObject();
+                    borrowedConnections.add(socket);
+                    testedConnections++;
+
+                    if (!socket.isConnected()) {
+                        log.warn("Warmup: socket {} to HSM {}:{} is not connected",
+                                i + 1, node.getIp(), node.getPort());
+                        invalidateConnectionSafely(socket);
+                        borrowedConnections.remove(socket);
+                        continue;
+                    }
+
+                    CompletableFuture<String> pingFuture = socket.pingHsm();
+                    String response = pingFuture.get(1, TimeUnit.SECONDS);
+
+                    if (response != null && !response.trim().isEmpty()) {
+                        successfulPings++;
+                        log.info("Warmup validated connection {} for {}:{}",
+                                i + 1, node.getIp(), node.getPort());
+                    } else {
+                        log.warn("Warmup failed - empty response from connection {} for HSM {}:{}",
+                                i + 1, node.getIp(), node.getPort());
+                        invalidateConnectionSafely(socket);
+                        borrowedConnections.remove(socket);
+                    }
+
+                } catch (TimeoutException e) {
+                    log.warn("Warmup timeout for connection {} to HSM {}:{}",
+                            i + 1, node.getIp(), node.getPort());
+                    invalidateConnectionSafely(socket);
+                    borrowedConnections.remove(socket);
+                } catch (Exception e) {
+                    log.error("Warmup failed for connection {} to HSM {}:{}",
+                            i + 1, node.getIp(), node.getPort(), e);
+                    invalidateConnectionSafely(socket);
+                    borrowedConnections.remove(socket);
+                }
+            }
+
+            if (successfulPings > 0) {
+                markHealthy();
+                log.info("HSM {}:{} warmup passed - {}/{} connections healthy",
+                        node.getIp(), node.getPort(), successfulPings, testedConnections);
+            } else {
+                markUnhealthy();
+                log.warn("HSM {}:{} warmup failed - 0/{}/{} connections healthy",
+                        node.getIp(), node.getPort(), testedConnections, connections);
+            }
+
+        } finally {
+            for (AsyncSocketConnection asyncSocketConnection : borrowedConnections) {
+                returnConnectionSafely(asyncSocketConnection);
+            }
+        }
+    }
+
+
     public void warmupPoolAndMarkHealthyNodes() throws Exception {
         int connections = Math.max(1, config.getIdleConnections());
 
@@ -66,10 +134,9 @@ public class HSMConnectionPool {
             try {
                 socket = internalConnectionPool.borrowObject();
                 if (!socket.isConnected()) {
-                    internalConnectionPool.invalidateObject(socket); // discard broken socket
+                    internalConnectionPool.invalidateObject(socket);
                     throw new HSMConnectionException("Socket failed to connect to HSM" + node.getIp());
                 }
-                // TODO: check and think if we nede keep ping on startup for validation ?
                 else {
                     log.info("Validated connection {} for {}:{}", i + 1, node.getIp(), node.getPort());
                 }
@@ -91,9 +158,9 @@ public class HSMConnectionPool {
         }
         AsyncSocketConnection socket = null;
         try {
-            log.info("Attempting to borrow socket from pool for correlation id {}  {}:{}" ,correlationId, node.getIp(), node.getPort());
-            socket = internalConnectionPool.borrowObject(Duration.ofMillis(70));
-            log.info("Successfully borrowed socket from pool for correlation id {} {}:{}",correlationId, node.getIp(), node.getPort());
+            log.info("Attempting to borrow socket from pool for correlation id {}  {}:{}", correlationId, node.getIp(), node.getPort());
+            socket = internalConnectionPool.borrowObject(Duration.ofMillis(1000));
+            log.info("Successfully borrowed socket from pool for correlation id {} {}:{}", correlationId, node.getIp(), node.getPort());
             final AsyncSocketConnection finalSocket = socket;
             return socket.sendCommandToHSM(command, correlationId)
                     .whenComplete((hsmResult, ex) -> {
